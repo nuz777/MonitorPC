@@ -1,0 +1,32 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="MonitorPC.App"
+             RequestedThemeVariant="Dark">
+
+  <Application.Styles>
+    <FluentTheme />
+  </Application.Styles>
+
+  <!-- Estos valores son los del tema "Cielo"; en tiempo de ejecución se reemplazan según el tema elegido -->
+  <Application.Resources>
+    <SolidColorBrush x:Key="BgBrush" Color="#0A0F1F" />
+    <SolidColorBrush x:Key="SideBrush" Color="#C80A0F1F" />
+    <SolidColorBrush x:Key="CardBrush" Color="#BD121A33" />
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#E625315A" />
+    <SolidColorBrush x:Key="TextBrush" Color="#F2F5FF" />
+    <SolidColorBrush x:Key="MutedBrush" Color="#8E9AC0" />
+    <SolidColorBrush x:Key="Accent1Brush" Color="#3D7BFF" />
+    <SolidColorBrush x:Key="Accent2Brush" Color="#38D0FF" />
+    <SolidColorBrush x:Key="Accent3Brush" Color="#8B7CFF" />
+    <SolidColorBrush x:Key="Accent4Brush" Color="#FFB86B" />
+    <SolidColorBrush x:Key="Accent1SoftBrush" Color="#383D7BFF" />
+    <SolidColorBrush x:Key="HoverBrush" Color="#1CFFFFFF" />
+    <SolidColorBrush x:Key="TrackBrush" Color="#28FFFFFF" />
+
+    <!-- Iconos (cuadrícula de 24x24) -->
+    <StreamGeometry x:Key="IconPanel">M3,3 h8 v8 h-8 z M13,3 h8 v8 h-8 z M3,13 h8 v8 h-8 z M13,13 h8 v8 h-8 z</StreamGeometry>
+    <StreamGeometry x:Key="IconProcesos">M6,6 h12 v12 h-12 z M9,9 v6 h6 v-6 z M9,2 h2 v4 h-2 z M13,2 h2 v4 h-2 z M9,18 h2 v4 h-2 z M13,18 h2 v4 h-2 z M2,9 h4 v2 h-4 z M2,13 h4 v2 h-4 z M18,9 h4 v2 h-4 z M18,13 h4 v2 h-4 z</StreamGeometry>
+    <StreamGeometry x:Key="IconDisco">M12,3 C7.5,3 4,4.3 4,6 L4,18 C4,19.7 7.5,21 12,21 C16.5,21 20,19.7 20,18 L20,6 C20,4.3 16.5,3 12,3 Z M12,5 C15.5,5 18,5.7 18,6 C18,6.3 15.5,7 12,7 C8.5,7 6,6.3 6,6 C6,5.7 8.5,5 12,5 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconAjustes">M3,7 h7 v2 h-7 z M14,7 h7 v2 h-7 z M10,5 h4 v6 h-4 z M3,15 h13 v2 h-13 z M20,15 h1 v2 h-1 z M16,13 h4 v6 h-4 z</StreamGeometry>
+  </Application.Resources>
+</Application>

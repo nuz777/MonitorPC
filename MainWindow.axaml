@@ -1,0 +1,424 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:MonitorPC"
+        x:Class="MonitorPC.MainWindow"
+        Title="Monitor PC"
+        Icon="/Assets/icono.png"
+        Width="1040" Height="700" MinWidth="300" MinHeight="340"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgBrush}"
+        Foreground="{DynamicResource TextBrush}">
+
+  <!-- ===================== ESTILOS ===================== -->
+  <Window.Styles>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Padding" Value="16" />
+      <Setter Property="Margin" Value="6" />
+      <Setter Property="BoxShadow" Value="0 6 20 0 #30000000" />
+    </Style>
+
+    <Style Selector="TextBlock.h1">
+      <Setter Property="FontSize" Value="24" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="TextBlock.h2">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.big">
+      <Setter Property="FontSize" Value="34" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.cap">
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="ProgressBar">
+      <Setter Property="Height" Value="8" />
+      <Setter Property="MinHeight" Value="8" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="{DynamicResource TrackBrush}" />
+    </Style>
+    <Style Selector=".c1 ProgressBar"><Setter Property="Foreground" Value="{DynamicResource Accent1Brush}" /></Style>
+    <Style Selector=".c2 ProgressBar"><Setter Property="Foreground" Value="{DynamicResource Accent2Brush}" /></Style>
+    <Style Selector=".c3 ProgressBar"><Setter Property="Foreground" Value="{DynamicResource Accent3Brush}" /></Style>
+    <Style Selector=".c4 ProgressBar"><Setter Property="Foreground" Value="{DynamicResource Accent4Brush}" /></Style>
+
+    <!-- Botones de la barra lateral -->
+    <Style Selector="Button.nav">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="13,11" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    </Style>
+    <Style Selector="Button.nav.active /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Accent1SoftBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    </Style>
+
+    <!-- Botones segmentados (ordenar por...) -->
+    <Style Selector="Button.seg">
+      <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+      <Setter Property="Padding" Value="16,7" />
+      <Setter Property="CornerRadius" Value="16" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.seg.active /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Accent1Brush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Barra lateral compacta (ventana estrecha): solo iconos -->
+    <Style Selector="Border.compacta TextBlock.navtxt">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="Border.compacta Button.nav">
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.compacta StackPanel.logo">
+      <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ListBox">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="CornerRadius" Value="10" />
+    </Style>
+  </Window.Styles>
+
+  <!-- Plantilla de fila para todas las listas (apps, carpetas, particiones) -->
+  <Window.DataTemplates>
+    <DataTemplate DataType="local:FilaUso">
+      <StackPanel Spacing="3" Margin="0,5">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="{Binding Nombre}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+          <TextBlock Grid.Column="1" Text="{Binding Valor}" Classes="muted" Margin="10,0,0,0" />
+        </Grid>
+        <ProgressBar Value="{Binding Pct}" Maximum="100" />
+        <TextBlock Text="{Binding Detalle}" Classes="muted" TextTrimming="CharacterEllipsis"
+                   IsVisible="{Binding TieneDetalle}" />
+      </StackPanel>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <!-- ===================== CONTENIDO ===================== -->
+  <Grid>
+
+    <!-- Personaje de fondo -->
+    <Image x:Name="ImgFondo" Source="/Assets/personaje.png" Stretch="Uniform"
+           HorizontalAlignment="Right" VerticalAlignment="Bottom"
+           Opacity="0.5" IsHitTestVisible="False" />
+
+    <Grid ColumnDefinitions="Auto,*">
+
+      <!-- ============ BARRA LATERAL ============ -->
+      <Border x:Name="Sidebar" Grid.Column="0" Width="196"
+              Background="{DynamicResource SideBrush}"
+              BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,1,0">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="10">
+
+          <StackPanel Grid.Row="0" Classes="logo" Orientation="Horizontal" Spacing="10"
+                      Margin="2,6,2,18" HorizontalAlignment="Left">
+            <Border Width="38" Height="38" CornerRadius="19" ClipToBounds="True"
+                    Background="{DynamicResource Accent1SoftBrush}">
+              <Image Source="/Assets/icono.png" Stretch="UniformToFill" />
+            </Border>
+            <TextBlock Classes="navtxt h2" Text="Monitor PC" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <StackPanel Grid.Row="1" Spacing="4">
+            <Button x:Name="BtnPanel" Classes="nav active" Tag="panel" Click="Nav_Click">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Path Data="{StaticResource IconPanel}" Fill="{DynamicResource Accent1Brush}"
+                      Width="20" Height="20" Stretch="Uniform" />
+                <TextBlock Classes="navtxt" Text="Panel" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="BtnProcesos" Classes="nav" Tag="procesos" Click="Nav_Click">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Path Data="{StaticResource IconProcesos}" Fill="{DynamicResource Accent2Brush}"
+                      Width="20" Height="20" Stretch="Uniform" />
+                <TextBlock Classes="navtxt" Text="Procesos" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="BtnDisco" Classes="nav" Tag="disco" Click="Nav_Click">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Path Data="{StaticResource IconDisco}" Fill="{DynamicResource Accent4Brush}"
+                      Width="20" Height="20" Stretch="Uniform" />
+                <TextBlock Classes="navtxt" Text="Disco" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="BtnAjustes" Classes="nav" Tag="ajustes" Click="Nav_Click">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Path Data="{StaticResource IconAjustes}" Fill="{DynamicResource Accent3Brush}"
+                      Width="20" Height="20" Stretch="Uniform" />
+                <TextBlock Classes="navtxt" Text="Ajustes" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+
+          <TextBlock Grid.Row="2" Classes="navtxt muted" Text="Se actualiza en vivo"
+                     HorizontalAlignment="Center" Margin="0,8,0,2" />
+        </Grid>
+      </Border>
+
+      <!-- ============ PÁGINAS ============ -->
+      <Grid Grid.Column="1">
+
+        <!-- === PANEL === -->
+        <ScrollViewer x:Name="PgPanel" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="10,10,10,18" Spacing="4">
+
+            <StackPanel Margin="8,4,8,4">
+              <TextBlock Classes="h1" Text="Panel" />
+              <TextBlock x:Name="TxtSubPanel" Classes="muted" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+
+            <UniformGrid x:Name="GridTarjetas" Columns="3">
+
+              <!-- CPU -->
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="cap" Text="USO DE CPU" />
+                    <TextBlock Grid.Column="1" x:Name="TxtFrec" Classes="muted" />
+                  </Grid>
+                  <TextBlock x:Name="TxtCpu" Classes="big" Text="--" />
+                  <Canvas x:Name="LienzoCpu" Height="46" ClipToBounds="True">
+                    <Polygon x:Name="AreaCpu" Fill="{DynamicResource Accent1SoftBrush}" />
+                    <Polyline x:Name="LineaCpu" Stroke="{DynamicResource Accent1Brush}"
+                              StrokeThickness="2" StrokeJoin="Round" />
+                  </Canvas>
+                  <TextBlock x:Name="TxtCpuDet" Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+
+              <!-- Temperatura -->
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="cap" Text="TEMPERATURA CPU" />
+                    <TextBlock Grid.Column="1" x:Name="TxtTempEstado" Classes="muted" />
+                  </Grid>
+                  <TextBlock x:Name="TxtTemp" Classes="big" Text="--" />
+                  <ProgressBar x:Name="BarTemp" Maximum="100" />
+                  <Canvas x:Name="LienzoTemp" Height="46" ClipToBounds="True">
+                    <Polyline x:Name="LineaTemp" Stroke="{DynamicResource Accent4Brush}"
+                              StrokeThickness="2" StrokeJoin="Round" />
+                  </Canvas>
+                </StackPanel>
+              </Border>
+
+              <!-- RAM -->
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="cap" Text="RAM LIBRE" />
+                  <TextBlock x:Name="TxtRam" Classes="big" Text="--" />
+                  <ProgressBar x:Name="BarRam" Maximum="100" Foreground="{DynamicResource Accent3Brush}" />
+                  <Canvas x:Name="LienzoRam" Height="46" ClipToBounds="True">
+                    <Polyline x:Name="LineaRam" Stroke="{DynamicResource Accent3Brush}"
+                              StrokeThickness="2" StrokeJoin="Round" />
+                  </Canvas>
+                  <TextBlock x:Name="TxtRamDet" Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+
+              <!-- Disco -->
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="cap" Text="DISCO DISPONIBLE" />
+                  <TextBlock x:Name="TxtDisco" Classes="big" Text="--" />
+                  <ProgressBar x:Name="BarDisco" Maximum="100" Foreground="{DynamicResource Accent4Brush}" />
+                  <TextBlock x:Name="TxtDiscoDet" Classes="muted" TextWrapping="Wrap" />
+                  <TextBlock x:Name="TxtDiscoIo" Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+
+              <!-- Red -->
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="cap" Text="RED" />
+                  <TextBlock x:Name="TxtRedBaja" Classes="big" FontSize="26" Text="--" />
+                  <Canvas x:Name="LienzoRed" Height="46" ClipToBounds="True">
+                    <Polyline x:Name="LineaRed" Stroke="{DynamicResource Accent2Brush}"
+                              StrokeThickness="2" StrokeJoin="Round" />
+                  </Canvas>
+                  <TextBlock x:Name="TxtRedSube" Classes="muted" />
+                </StackPanel>
+              </Border>
+
+              <!-- Sistema -->
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="cap" Text="SISTEMA" />
+                  <TextBlock x:Name="TxtCpuModelo" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock x:Name="TxtSisInfo" Classes="muted" TextWrapping="Wrap" />
+                  <TextBlock x:Name="TxtUptime" Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+
+            </UniformGrid>
+
+            <TextBlock Classes="h2" Text="Apps que más consumen" Margin="8,14,8,2" />
+
+            <UniformGrid x:Name="GridTops" Columns="3">
+              <Border Classes="card">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="cap" Text="MÁS RAM" />
+                  <ItemsControl x:Name="ListaTopRam" Classes="c3" />
+                </StackPanel>
+              </Border>
+              <Border Classes="card">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="cap" Text="MÁS CPU" />
+                  <ItemsControl x:Name="ListaTopCpu" Classes="c1" />
+                </StackPanel>
+              </Border>
+              <Border Classes="card">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="cap" Text="MÁS ACTIVIDAD DE DISCO" />
+                  <ItemsControl x:Name="ListaTopIo" Classes="c4" />
+                </StackPanel>
+              </Border>
+            </UniformGrid>
+
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- === PROCESOS === -->
+        <ScrollViewer x:Name="PgProcesos" IsVisible="False"
+                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="10,10,10,18" Spacing="4">
+            <StackPanel Margin="8,4,8,4">
+              <TextBlock Classes="h1" Text="Procesos" />
+              <TextBlock x:Name="TxtSubProc" Classes="muted" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <WrapPanel Margin="8,2,8,0">
+              <Button x:Name="BtnOrdRam" Classes="seg active" Tag="ram" Click="Orden_Click"
+                      Content="Por RAM" Margin="0,0,8,6" />
+              <Button x:Name="BtnOrdCpu" Classes="seg" Tag="cpu" Click="Orden_Click"
+                      Content="Por CPU" Margin="0,0,8,6" />
+              <Button x:Name="BtnOrdIo" Classes="seg" Tag="io" Click="Orden_Click"
+                      Content="Por disco (E/S)" Margin="0,0,8,6" />
+            </WrapPanel>
+
+            <Border Classes="card">
+              <ItemsControl x:Name="ListaProcesos" Classes="c3" />
+            </Border>
+
+            <TextBlock Classes="muted" TextWrapping="Wrap" Margin="10,4"
+                       Text="Las apps con varios procesos (Chrome, Firefox...) se agrupan y suman. La RAM es la memoria residente; el % de CPU es sobre el total del equipo. La actividad de disco solo se puede leer en tus propios procesos." />
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- === DISCO === -->
+        <ScrollViewer x:Name="PgDisco" IsVisible="False"
+                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="10,10,10,18" Spacing="4">
+            <StackPanel Margin="8,4,8,4">
+              <TextBlock Classes="h1" Text="Disco" />
+              <TextBlock Classes="muted" Text="Particiones y actividad de lectura/escritura" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Classes="card">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="cap" Text="PARTICIONES" />
+                <ItemsControl x:Name="ListaParticiones" Classes="c4" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="cap" Text="ACTIVIDAD AHORA" />
+                <TextBlock x:Name="TxtIoLee" Text="Lectura: --" />
+                <TextBlock x:Name="TxtIoEscribe" Text="Escritura: --" />
+                <TextBlock Classes="cap" Text="APPS CON MÁS ACTIVIDAD" Margin="0,10,0,0" />
+                <ItemsControl x:Name="ListaIo" Classes="c4" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- === AJUSTES === -->
+        <ScrollViewer x:Name="PgAjustes" IsVisible="False"
+                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="10,10,10,18" Spacing="4">
+            <StackPanel Margin="8,4,8,4">
+              <TextBlock Classes="h1" Text="Ajustes" />
+              <TextBlock Classes="muted" Text="Se guardan solos al cerrar la app" />
+            </StackPanel>
+
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <TextBlock Classes="cap" Text="TEMA" />
+                <WrapPanel x:Name="WrapTemas" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="12">
+                <TextBlock Classes="cap" Text="FONDO" />
+                <ToggleSwitch x:Name="SwPersonaje" Content="Mostrar el personaje de fondo"
+                              OnContent="Sí" OffContent="No" />
+                <StackPanel Spacing="2">
+                  <TextBlock x:Name="TxtOpPersonaje" Classes="muted" />
+                  <Slider x:Name="SlPersonaje" Minimum="0.05" Maximum="1" />
+                </StackPanel>
+                <StackPanel Spacing="2">
+                  <TextBlock x:Name="TxtOpTarjetas" Classes="muted" />
+                  <Slider x:Name="SlTarjetas" Minimum="0.3" Maximum="1" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="12">
+                <TextBlock Classes="cap" Text="VENTANA Y ACTUALIZACIÓN" />
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="muted" Text="Actualizar cada" />
+                  <ComboBox x:Name="CmbIntervalo" SelectedIndex="0" MinWidth="160">
+                    <ComboBoxItem Content="1 segundo" />
+                    <ComboBoxItem Content="2 segundos" />
+                    <ComboBoxItem Content="5 segundos" />
+                  </ComboBox>
+                </StackPanel>
+                <ToggleSwitch x:Name="SwEncima" Content="Mantener la ventana siempre encima"
+                              OnContent="Sí" OffContent="No" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="cap" Text="ACERCA DE" />
+                <TextBlock TextWrapping="Wrap"
+                           Text="Monitor PC · hecho con C# y Avalonia. Lee los datos directamente de /proc y /sys, sin librerías externas." />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>
