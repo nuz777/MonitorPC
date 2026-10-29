@@ -26,7 +26,7 @@ public partial class MainWindow : Window
 
     string _pagina = "panel";
     string _orden = "ram";
-    bool _ocupado, _listo, _cargandoParticiones;
+    bool _ocupado, _listo, _cargandoParticiones, _cargandoApps;
     Snapshot? _ultimo;
 
     public MainWindow()
@@ -101,7 +101,12 @@ public partial class MainWindow : Window
             SetClase(kv.Value.boton, "active", kv.Key == pag);
         }
         if (_ultimo != null) PintarListas(_ultimo);
-        if (pag == "disco") _ = ActualizarParticionesAsync();
+        if (pag == "disco")
+        {
+            _ = ActualizarParticionesAsync();
+            if (ListaAppsEspacio.ItemsSource == null)
+                _ = CargarAppsEspacioAsync();
+        }
     }
 
     void Orden_Click(object? sender, RoutedEventArgs e)
@@ -265,6 +270,33 @@ public partial class MainWindow : Window
         catch { }
         finally { _cargandoParticiones = false; }
     }
+
+    async Task CargarAppsEspacioAsync()
+    {
+        if (_cargandoApps) return;
+        _cargandoApps = true;
+        try
+        {
+            if (ListaAppsEspacio.ItemsSource == null)
+                TxtEstadoApps.Text = "Analizando aplicaciones instaladas…";
+
+            var apps = await Task.Run(AppScanner.EscanearApps);
+            ListaAppsEspacio.ItemsSource = apps;
+            TxtEstadoApps.Text = apps.Count > 0
+                ? $"{apps.Count} aplicaciones instaladas · ordenadas por tamaño"
+                : "No se encontraron aplicaciones instaladas.";
+        }
+        catch
+        {
+            TxtEstadoApps.Text = "No se pudieron obtener las aplicaciones.";
+        }
+        finally
+        {
+            _cargandoApps = false;
+        }
+    }
+
+    void RecargarApps_Click(object? sender, RoutedEventArgs e) => _ = CargarAppsEspacioAsync();
 
     // ---------- Filas para las listas ----------
     static string Nom(AppUso a) => a.Cantidad > 1 ? $"{a.Nombre} ×{a.Cantidad}" : a.Nombre;

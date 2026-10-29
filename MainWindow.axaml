@@ -338,7 +338,7 @@
           <StackPanel Margin="10,10,10,18" Spacing="4">
             <StackPanel Margin="8,4,8,4">
               <TextBlock Classes="h1" Text="Disco" />
-              <TextBlock Classes="muted" Text="Particiones y actividad de lectura/escritura" TextWrapping="Wrap" />
+              <TextBlock Classes="muted" Text="Particiones, actividad y qué apps ocupan más espacio" TextWrapping="Wrap" />
             </StackPanel>
 
             <Border Classes="card">
@@ -355,6 +355,20 @@
                 <TextBlock x:Name="TxtIoEscribe" Text="Escritura: --" />
                 <TextBlock Classes="cap" Text="APPS CON MÁS ACTIVIDAD" Margin="0,10,0,0" />
                 <ItemsControl x:Name="ListaIo" Classes="c4" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Classes="cap" Text="¿QUÉ OCUPA MÁS ESPACIO?" />
+                    <TextBlock x:Name="TxtEstadoApps" Classes="muted" Text="Aplicaciones instaladas ordenadas por peso" />
+                  </StackPanel>
+                  <Button Grid.Column="1" x:Name="BtnRecargarApps" Content="Actualizar"
+                          Click="RecargarApps_Click" Padding="12,5" CornerRadius="10" />
+                </Grid>
+                <ItemsControl x:Name="ListaAppsEspacio" Classes="c4" Margin="0,6,0,0" />
               </StackPanel>
             </Border>
           </StackPanel>

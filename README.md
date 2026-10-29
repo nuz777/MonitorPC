@@ -5,7 +5,7 @@ App de escritorio en C# + Avalonia (.NET 10) para vigilar tu equipo en vivo.
 **Páginas**
 - **Panel**: uso de CPU con gráfica, temperatura, RAM libre, disco, red y datos del sistema, más el top de apps por RAM, CPU y actividad de disco.
 - **Procesos**: apps agrupadas por nombre (Chrome, Firefox... suman todos sus procesos), ordenables por RAM, CPU o disco (E/S).
-- **Disco**: particiones, actividad de lectura/escritura y un explorador que muestra qué carpetas ocupan más espacio (doble clic para entrar).
+- **Disco**: particiones, actividad de lectura/escritura y qué aplicaciones ocupan más espacio con sus nombres reales y tamaño.
 - **Ajustes**: 8 temas (Cielo, Medianoche, Neón, Bosque, Atardecer, Grafito, Claro, Sakura), opacidad del personaje de fondo y de las tarjetas, intervalo de actualización y ventana siempre encima.
 
 La ventana se puede reducir hasta ~300 px: la barra lateral pasa a solo iconos y las tarjetas se reacomodan en 1, 2 o 3 columnas.
