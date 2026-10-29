@@ -168,6 +168,13 @@
                 <TextBlock Classes="navtxt" Text="Disco" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
+            <Button x:Name="BtnEspacio" Classes="nav" Tag="espacio" Click="Nav_Click">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Path Data="{StaticResource IconEspacio}" Fill="{DynamicResource Accent1Brush}"
+                      Width="20" Height="20" Stretch="Uniform" />
+                <TextBlock Classes="navtxt" Text="Espacio" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
             <Button x:Name="BtnAjustes" Classes="nav" Tag="ajustes" Click="Nav_Click">
               <StackPanel Orientation="Horizontal" Spacing="12">
                 <Path Data="{StaticResource IconAjustes}" Fill="{DynamicResource Accent3Brush}"
@@ -338,7 +345,7 @@
           <StackPanel Margin="10,10,10,18" Spacing="4">
             <StackPanel Margin="8,4,8,4">
               <TextBlock Classes="h1" Text="Disco" />
-              <TextBlock Classes="muted" Text="Particiones, actividad y qué apps ocupan más espacio" TextWrapping="Wrap" />
+              <TextBlock Classes="muted" Text="Particiones y actividad de lectura/escritura" TextWrapping="Wrap" />
             </StackPanel>
 
             <Border Classes="card">
@@ -357,18 +364,40 @@
                 <ItemsControl x:Name="ListaIo" Classes="c4" />
               </StackPanel>
             </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- === ESPACIO === -->
+        <ScrollViewer x:Name="PgEspacio" IsVisible="False"
+                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="10,10,10,18" Spacing="4">
+            <StackPanel Margin="8,4,8,4">
+              <TextBlock Classes="h1" Text="¿Qué ocupa más espacio?" />
+              <TextBlock Classes="muted" Text="Explora cualquier ruta para ver qué archivos y carpetas pesan más" TextWrapping="Wrap" />
+            </StackPanel>
 
             <Border Classes="card">
-              <StackPanel Spacing="6">
+              <StackPanel Spacing="10">
+                <TextBlock Classes="cap" Text="RUTA A ANALIZAR" />
                 <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Spacing="2">
-                    <TextBlock Classes="cap" Text="¿QUÉ OCUPA MÁS ESPACIO?" />
-                    <TextBlock x:Name="TxtEstadoApps" Classes="muted" Text="Aplicaciones instaladas ordenadas por peso" />
-                  </StackPanel>
-                  <Button Grid.Column="1" x:Name="BtnRecargarApps" Content="Actualizar"
-                          Click="RecargarApps_Click" Padding="12,5" CornerRadius="10" />
+                  <TextBox x:Name="TxtRutaEspacio" Watermark="Ej: /home/nuz o /" VerticalAlignment="Center" />
+                  <Button Grid.Column="1" x:Name="BtnAnalizarEspacio" Content="Analizar" Click="AnalizarEspacio_Click"
+                          Margin="8,0,0,0" Padding="18,7" CornerRadius="12" Background="{DynamicResource Accent1Brush}" Foreground="White" />
                 </Grid>
-                <ItemsControl x:Name="ListaAppsEspacio" Classes="c4" Margin="0,6,0,0" />
+
+                <WrapPanel>
+                  <Button Content="Mi carpeta" Click="RutaHome_Click" Margin="0,0,8,6" Padding="12,5" CornerRadius="10" />
+                  <Button Content="Raíz (/)" Click="RutaRaiz_Click" Margin="0,0,8,6" Padding="12,5" CornerRadius="10" />
+                  <Button Content="Subir nivel" Click="RutaSubir_Click" Margin="0,0,8,6" Padding="12,5" CornerRadius="10" />
+                  <Button x:Name="BtnCancelarEspacio" Content="Cancelar" Click="CancelarEspacio_Click"
+                          IsEnabled="False" Margin="0,0,8,6" Padding="12,5" CornerRadius="10" />
+                </WrapPanel>
+
+                <TextBlock x:Name="TxtEstadoEspacio" Classes="muted" TextWrapping="Wrap"
+                           Text="Escribe una ruta o pulsa 'Mi carpeta' y luego 'Analizar'. Haz doble clic en una carpeta para explorarla." />
+
+                <ListBox x:Name="ListaEspacio" Classes="c1" DoubleTapped="ElementoEspacio_DoubleTapped"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="0,4,0,0" />
               </StackPanel>
             </Border>
           </StackPanel>

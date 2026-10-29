@@ -26,7 +26,7 @@ public partial class MainWindow : Window
 
     string _pagina = "panel";
     string _orden = "ram";
-    bool _ocupado, _listo, _cargandoParticiones, _cargandoApps;
+    bool _ocupado, _listo, _cargandoParticiones;
     Snapshot? _ultimo;
 
     public MainWindow()
@@ -37,6 +37,7 @@ public partial class MainWindow : Window
         _paginas["panel"] = (PgPanel, BtnPanel);
         _paginas["procesos"] = (PgProcesos, BtnProcesos);
         _paginas["disco"] = (PgDisco, BtnDisco);
+        _paginas["espacio"] = (PgEspacio, BtnEspacio);
         _paginas["ajustes"] = (PgAjustes, BtnAjustes);
 
         ConstruirTemas();
@@ -44,6 +45,7 @@ public partial class MainWindow : Window
         AplicarTema();
         AplicarFondo();
 
+        TxtRutaEspacio.Text = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         TxtSubPanel.Text = _sampler.InfoSistema;
         TxtCpuModelo.Text = $"{_sampler.ModeloCpu} · {_sampler.Nucleos} núcleos";
         TxtSisInfo.Text = _sampler.InfoSistema;
@@ -104,8 +106,13 @@ public partial class MainWindow : Window
         if (pag == "disco")
         {
             _ = ActualizarParticionesAsync();
-            if (ListaAppsEspacio.ItemsSource == null)
-                _ = CargarAppsEspacioAsync();
+        }
+        else if (pag == "espacio")
+        {
+            if (ListaEspacio.ItemsSource == null && !string.IsNullOrWhiteSpace(TxtRutaEspacio.Text))
+            {
+                _ = AnalizarRutaAsync(TxtRutaEspacio.Text);
+            }
         }
     }
 
@@ -279,32 +286,103 @@ public partial class MainWindow : Window
         finally { _cargandoParticiones = false; }
     }
 
-    async Task CargarAppsEspacioAsync()
-    {
-        if (_cargandoApps) return;
-        _cargandoApps = true;
-        try
-        {
-            if (ListaAppsEspacio.ItemsSource == null)
-                TxtEstadoApps.Text = "Analizando aplicaciones instaladas…";
+    CancellationTokenSource? _ctsEspacio;
 
-            var apps = await Task.Run(AppScanner.EscanearApps);
-            ListaAppsEspacio.ItemsSource = apps;
-            TxtEstadoApps.Text = apps.Count > 0
-                ? $"{apps.Count} aplicaciones instaladas · ordenadas por tamaño"
-                : "No se encontraron aplicaciones instaladas.";
-        }
-        catch
+    void RutaHome_Click(object? sender, RoutedEventArgs e)
+    {
+        TxtRutaEspacio.Text = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        _ = AnalizarRutaAsync(TxtRutaEspacio.Text);
+    }
+
+    void RutaRaiz_Click(object? sender, RoutedEventArgs e)
+    {
+        TxtRutaEspacio.Text = "/";
+        _ = AnalizarRutaAsync("/");
+    }
+
+    void RutaSubir_Click(object? sender, RoutedEventArgs e)
+    {
+        var ruta = (TxtRutaEspacio.Text ?? "").Trim().TrimEnd('/');
+        var padre = Directory.GetParent(ruta.Length == 0 ? "/" : ruta);
+        if (padre != null)
         {
-            TxtEstadoApps.Text = "No se pudieron obtener las aplicaciones.";
-        }
-        finally
-        {
-            _cargandoApps = false;
+            TxtRutaEspacio.Text = padre.FullName;
+            _ = AnalizarRutaAsync(padre.FullName);
         }
     }
 
-    void RecargarApps_Click(object? sender, RoutedEventArgs e) => _ = CargarAppsEspacioAsync();
+    void CancelarEspacio_Click(object? sender, RoutedEventArgs e) => _ctsEspacio?.Cancel();
+
+    async void AnalizarEspacio_Click(object? sender, RoutedEventArgs e) =>
+        await AnalizarRutaAsync(TxtRutaEspacio.Text ?? "");
+
+    void ElementoEspacio_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (ListaEspacio.SelectedItem is FilaUso f && f.EsCarpeta && f.Ruta != null)
+        {
+            TxtRutaEspacio.Text = f.Ruta;
+            _ = AnalizarRutaAsync(f.Ruta);
+        }
+    }
+
+    async Task AnalizarRutaAsync(string ruta)
+    {
+        ruta = ruta.Trim();
+        if (ruta.Length > 1) ruta = ruta.TrimEnd('/');
+        if (!Directory.Exists(ruta))
+        {
+            TxtEstadoEspacio.Text = "La ruta no existe o no es una carpeta.";
+            return;
+        }
+
+        _ctsEspacio?.Cancel();
+        var cts = _ctsEspacio = new CancellationTokenSource();
+        TxtRutaEspacio.Text = ruta;
+        TxtEstadoEspacio.Text = "Analizando archivos y carpetas…";
+        BtnAnalizarEspacio.IsEnabled = false;
+        BtnCancelarEspacio.IsEnabled = true;
+
+        try
+        {
+            var res = await Task.Run(() => DiskScanner.EscanearRuta(ruta, cts.Token, n =>
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (!cts.IsCancellationRequested)
+                        TxtEstadoEspacio.Text = $"Analizando… {n} subcarpetas procesadas";
+                })), cts.Token);
+
+            if (cts.IsCancellationRequested) return;
+
+            long total = res.Sum(r => r.Bytes);
+            ListaEspacio.ItemsSource = res.Select(r => new FilaUso
+            {
+                Nombre = (r.EsCarpeta ? "📁 " : "📄 ") + r.Nombre,
+                Valor = Fmt.Bytes(r.Bytes),
+                Detalle = total > 0 ? $"{100.0 * r.Bytes / total:F1} % de esta ubicación" : "",
+                Pct = total > 0 ? 100.0 * r.Bytes / total : 0,
+                Ruta = r.Ruta,
+                EsCarpeta = r.EsCarpeta
+            }).ToList();
+
+            TxtEstadoEspacio.Text = $"{Fmt.Bytes(total)} en total en {ruta} · doble clic en una carpeta para entrar";
+        }
+        catch (OperationCanceledException)
+        {
+            if (ReferenceEquals(_ctsEspacio, cts)) TxtEstadoEspacio.Text = "Análisis cancelado.";
+        }
+        catch (Exception ex)
+        {
+            TxtEstadoEspacio.Text = $"Error al analizar: {ex.Message}";
+        }
+        finally
+        {
+            if (ReferenceEquals(_ctsEspacio, cts))
+            {
+                BtnAnalizarEspacio.IsEnabled = true;
+                BtnCancelarEspacio.IsEnabled = false;
+            }
+        }
+    }
 
     // ---------- Filas para las listas ----------
     static string Nom(AppUso a) => a.Cantidad > 1 ? $"{a.Nombre} ×{a.Cantidad}" : a.Nombre;
@@ -499,6 +577,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
+        _ctsEspacio?.Cancel();
         _aj.Guardar();
         base.OnClosing(e);
     }
