@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace MonitorPC;
@@ -229,25 +230,49 @@ public static class SystemStats
         return nombre;
     }
 
+    static (long utime, long stime, long rss) ParsearCamposStat(ReadOnlySpan<char> span)
+    {
+        long utime = 0, stime = 0, rss = 0;
+        int idx = 0;
+        int inicio = 0;
+        for (int i = 0; i <= span.Length; i++)
+        {
+            if (i == span.Length || span[i] == ' ')
+            {
+                if (i > inicio)
+                {
+                    var seg = span[inicio..i];
+                    if (idx == 11) long.TryParse(seg, NumberStyles.Integer, CultureInfo.InvariantCulture, out utime);
+                    else if (idx == 12) long.TryParse(seg, NumberStyles.Integer, CultureInfo.InvariantCulture, out stime);
+                    else if (idx == 21) { long.TryParse(seg, NumberStyles.Integer, CultureInfo.InvariantCulture, out rss); break; }
+                    idx++;
+                }
+                inicio = i + 1;
+            }
+        }
+        return (utime, stime, rss);
+    }
+
     public static List<ProcInfo> LeerProcesos()
     {
-        var lista = new List<ProcInfo>(512);
+        var lista = new List<ProcInfo>(256);
         int pagina = Environment.SystemPageSize;
 
         foreach (var dir in Directory.EnumerateDirectories("/proc"))
         {
-            if (!int.TryParse(Path.GetFileName(dir), out var pid)) continue;
+            var nombreDir = Path.GetFileName(dir);
+            if (!int.TryParse(nombreDir, out var pid)) continue;
             try
             {
-                var stat = File.ReadAllText($"{dir}/stat");
-                int ini = stat.IndexOf('(');
-                int fin = stat.LastIndexOf(')');
-                if (ini < 0 || fin < ini) continue;
+                var statContenido = File.ReadAllText($"{dir}/stat");
+                int ini = statContenido.IndexOf('(');
+                int fin = statContenido.LastIndexOf(')');
+                if (ini < 0 || fin < ini || fin + 2 >= statContenido.Length) continue;
 
-                var nombre = stat[(ini + 1)..fin];
-                var c = stat[(fin + 2)..].Split(' ');
-                long jiffies = long.Parse(c[11]) + long.Parse(c[12]); // utime + stime
-                long rss = long.Parse(c[21]) * pagina;
+                var nombre = statContenido[(ini + 1)..fin];
+                var restoSpan = statContenido.AsSpan(fin + 2);
+                var (utime, stime, rssPaginas) = ParsearCamposStat(restoSpan);
+                long rss = rssPaginas * pagina;
                 if (rss == 0) continue; // hilos del kernel
 
                 if (EsGenerico(nombre)) nombre = MejorarNombre(dir, nombre);
@@ -261,9 +286,9 @@ public static class SystemStats
                         else if (l.StartsWith("write_bytes:")) escrito = long.Parse(l.AsSpan(12).Trim());
                     }
                 }
-                catch { leido = escrito = -1; } // sin permiso (procesos de otros usuarios)
+                catch { leido = escrito = -1; }
 
-                lista.Add(new ProcInfo(pid, nombre, jiffies, rss, leido, escrito));
+                lista.Add(new ProcInfo(pid, nombre, utime + stime, rss, leido, escrito));
             }
             catch { /* el proceso terminó mientras lo leíamos */ }
         }

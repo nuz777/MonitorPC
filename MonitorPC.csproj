@@ -7,6 +7,12 @@
     <AssemblyName>monitorpc</AssemblyName>
     <RootNamespace>MonitorPC</RootNamespace>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+
+    <!-- Optimización de memoria RAM y garbage collection -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <RetainVMGarbageCollection>false</RetainVMGarbageCollection>
+    <TieredPGO>false</TieredPGO>
   </PropertyGroup>
 
   <ItemGroup>

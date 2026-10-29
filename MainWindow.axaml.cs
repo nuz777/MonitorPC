@@ -122,6 +122,8 @@ public partial class MainWindow : Window
         if (_ultimo != null) PintarProcesos(_ultimo);
     }
 
+    int _tickContador;
+
     // ------------------------------------------------------------------
     //  Muestreo
     // ------------------------------------------------------------------
@@ -134,6 +136,12 @@ public partial class MainWindow : Window
             var snap = await Task.Run(() => _sampler.Tomar());
             _ultimo = snap;
             Pintar(snap);
+
+            // Cada 10 ciclos libera memoria de objetos efímeros de muestreo
+            if (++_tickContador % 10 == 0)
+            {
+                GC.Collect(1, GCCollectionMode.Optimized, false);
+            }
         }
         catch { /* si una lectura falla, se reintenta en el siguiente ciclo */ }
         finally { _ocupado = false; }
