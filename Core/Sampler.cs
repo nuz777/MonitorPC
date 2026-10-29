@@ -140,6 +140,28 @@ public sealed class Sampler
 
     public static List<Particion> LeerParticiones()
     {
+        if (OperatingSystem.IsWindows())
+        {
+            var resWin = new List<Particion>();
+            foreach (var d in DriveInfo.GetDrives())
+            {
+                try
+                {
+                    if (!d.IsReady) continue;
+                    string etiqueta = string.IsNullOrWhiteSpace(d.VolumeLabel) ? "" : $" ({d.VolumeLabel})";
+                    resWin.Add(new Particion
+                    {
+                        Montaje = $"{d.Name}{etiqueta}",
+                        Formato = d.DriveFormat,
+                        TotalBytes = d.TotalSize,
+                        LibreBytes = d.AvailableFreeSpace
+                    });
+                }
+                catch { }
+            }
+            return resWin;
+        }
+
         var res = new List<Particion>();
         var vistos = new HashSet<string>();
         foreach (var d in DriveInfo.GetDrives())

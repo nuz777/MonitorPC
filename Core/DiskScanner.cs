@@ -50,7 +50,7 @@ public static class DiskScanner
             if (fi.LinkTarget != null || fi.Attributes.HasFlag(FileAttributes.ReparsePoint))
                 return 0; // No contar dos veces archivos enlazados
 
-            if (stat(fi.FullName, out var st) == 0 && st.st_blocks > 0)
+            if (OperatingSystem.IsLinux() && stat(fi.FullName, out var st) == 0 && st.st_blocks > 0)
             {
                 long bytesEnBloques = st.st_blocks * 512;
                 // Si el tamaño en bloques es menor que el tamaño aparente, es un archivo sparse (ej: VMs, Docker.raw)

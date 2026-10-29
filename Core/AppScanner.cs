@@ -1,9 +1,14 @@
+using Microsoft.Win32;
+
 namespace MonitorPC;
 
 public static class AppScanner
 {
     public static List<FilaUso> EscanearApps()
     {
+        if (OperatingSystem.IsWindows())
+            return EscanearAppsWindows();
+
         var apps = new Dictionary<string, (long bytes, string origen)>(StringComparer.OrdinalIgnoreCase);
 
         // 1. Mapear archivos .desktop a nombres legibles
@@ -230,5 +235,95 @@ public static class AppScanner
         }
         catch { }
         return total;
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    static List<FilaUso> EscanearAppsWindows()
+    {
+        var apps = new Dictionary<string, (long bytes, string origen)>(StringComparer.OrdinalIgnoreCase);
+
+        var claves = new[]
+        {
+            @"Software\Microsoft\Windows\CurrentVersion\Uninstall",
+            @"Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+        };
+
+        var raices = new[]
+        {
+            Registry.LocalMachine,
+            Registry.CurrentUser
+        };
+
+        foreach (var raiz in raices)
+        {
+            foreach (var claveRuta in claves)
+            {
+                try
+                {
+                    using var clave = raiz.OpenSubKey(claveRuta);
+                    if (clave == null) continue;
+
+                    foreach (var subNombre in clave.GetSubKeyNames())
+                    {
+                        try
+                        {
+                            using var sub = clave.OpenSubKey(subNombre);
+                            if (sub == null) continue;
+
+                            var sysComp = sub.GetValue("SystemComponent");
+                            if (sysComp is int sc && sc == 1) continue;
+
+                            var nombre = sub.GetValue("DisplayName") as string;
+                            if (string.IsNullOrWhiteSpace(nombre)) continue;
+
+                            long bytes = 0;
+                            var sizeVal = sub.GetValue("EstimatedSize");
+                            if (sizeVal is int sKb && sKb > 0)
+                            {
+                                bytes = (long)sKb * 1024;
+                            }
+                            else if (sizeVal is long sKbL && sKbL > 0)
+                            {
+                                bytes = sKbL * 1024;
+                            }
+
+                            if (bytes == 0)
+                            {
+                                var loc = sub.GetValue("InstallLocation") as string;
+                                if (!string.IsNullOrWhiteSpace(loc) && Directory.Exists(loc))
+                                {
+                                    bytes = MedirDirectorio(loc);
+                                }
+                            }
+
+                            if (bytes > 5 * 1024 * 1024)
+                            {
+                                if (!apps.TryGetValue(nombre, out var actual) || bytes > actual.bytes)
+                                {
+                                    apps[nombre] = (bytes, "Windows");
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
+        }
+
+        var lista = apps.Select(kv => new { Nombre = kv.Key, Bytes = kv.Value.bytes, Origen = kv.Value.origen })
+                        .OrderByDescending(a => a.Bytes)
+                        .ToList();
+
+        if (lista.Count == 0) return new List<FilaUso>();
+
+        double max = lista[0].Bytes;
+        return lista.Select(a => new FilaUso
+        {
+            Nombre = a.Nombre,
+            Valor = Fmt.Bytes(a.Bytes),
+            Detalle = a.Origen,
+            Pct = max > 0 ? 100.0 * a.Bytes / max : 0
+        }).ToList();
     }
 }

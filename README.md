@@ -1,12 +1,12 @@
-# Monitor PC (Linux)
+# Monitor PC (Linux & Windows)
 
-App de escritorio en C# + Avalonia (.NET 10) para vigilar tu equipo en vivo.
+App de escritorio en C# + Avalonia (.NET 10) para vigilar tu equipo en vivo en Linux y Windows.
 
 **Páginas**
 - **Panel**: uso de CPU con gráfica, temperatura, RAM libre, disco, red y datos del sistema, más el top de apps por RAM, CPU y actividad de disco.
 - **Procesos**: apps agrupadas por nombre (Chrome, Firefox... suman todos sus procesos), ordenables por RAM, CPU o disco (E/S).
-- **Disco**: particiones y actividad de lectura/escritura en tiempo real.
-- **Espacio**: explorador de almacenamiento para cualquier ruta (ej: `/home/usuario` o `/`) que analiza archivos y carpetas reales ordenados por tamaño (doble clic en una carpeta para explorarla).
+- **Disco**: particiones/unidades y actividad de lectura/escritura en tiempo real.
+- **Espacio**: explorador de almacenamiento para cualquier ruta (ej: `/home/usuario`, `/` o `C:\`) que analiza archivos y carpetas reales ordenados por tamaño (doble clic en una carpeta para explorarla).
 - **Ajustes**: 8 temas (Cielo, Medianoche, Neón, Bosque, Atardecer, Grafito, Claro, Sakura), opacidad del personaje de fondo y de las tarjetas, intervalo de actualización y ventana siempre encima.
 
 La ventana se puede reducir hasta ~300 px: la barra lateral pasa a solo iconos y las tarjetas se reacomodan en 1, 2 o 3 columnas.
@@ -46,12 +46,22 @@ Type=Application
 Categories=System;Monitor;
 ```
 
-## Paquete .deb (para compartir)
+## Paquete .deb (Linux)
 ```bash
-dotnet tool install --global dotnet-deb
-dotnet deb -c Release -r linux-x64
+dpkg-deb -Zxz -z9 --build debian_pkg monitorpc_1.0.0_amd64.deb
 ```
-(Alternativas: AppImage con `appimagetool`, o subir el `.zip` de `publish/` a GitHub Releases.)
+
+## Paquete Windows (win-x64)
+Para generar el ejecutable autocontenido (.exe único sin necesidad de .NET instalado):
+```bash
+dotnet publish -c Release -r win-x64 --self-contained true \
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+  -o publish_win
+```
+El archivo `publish_win/monitorpc.exe` se puede comprimir en `.zip` para distribuir:
+```bash
+zip -9 -j monitorpc_1.0.0_win-x64.zip publish_win/monitorpc.exe
+```
 
 ## Notas
 - La temperatura sale "N/D" si el equipo no expone sensores (máquinas virtuales, WSL). Revisa `ls /sys/class/thermal` y `ls /sys/class/hwmon`.

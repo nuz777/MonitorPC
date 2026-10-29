@@ -1,6 +1,9 @@
+using System.Diagnostics;
 using System.Globalization;
+using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using Microsoft.Win32;
 
 namespace MonitorPC;
 
@@ -8,20 +11,78 @@ public readonly record struct ProcInfo(int Pid, string Nombre, long Jiffies, lon
 
 public readonly record struct Memoria(long TotalKB, long DisponibleKB, long SwapTotalKB, long SwapLibreKB);
 
-/// <summary>Lee métricas del sistema directamente desde /proc y /sys (solo Linux).</summary>
+/// <summary>Lee métricas del sistema en Linux y Windows.</summary>
 public static class SystemStats
 {
+    // ---------- Win32 P/Invoke ----------
+    [StructLayout(LayoutKind.Sequential)]
+    struct FILETIME
+    {
+        public uint dwLowDateTime;
+        public uint dwHighDateTime;
+        public long ToTicks() => (long)(((ulong)dwHighDateTime << 32) | dwLowDateTime);
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetSystemTimes(out FILETIME lpIdleTime, out FILETIME lpKernelTime, out FILETIME lpUserTime);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    struct MEMORYSTATUSEX
+    {
+        public uint dwLength;
+        public uint dwMemoryLoad;
+        public ulong ullTotalPhys;
+        public ulong ullAvailPhys;
+        public ulong ullTotalPageFile;
+        public ulong ullAvailPageFile;
+        public ulong ullTotalVirtual;
+        public ulong ullAvailVirtual;
+        public ulong ullAvailExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+
     // ---------- CPU ----------
     public static (long idle, long total) LeerCpu()
     {
-        var linea = File.ReadLines("/proc/stat").First();
-        var v = linea.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                     .Skip(1).Take(8).Select(long.Parse).ToArray();
-        return (v[3] + v[4], v.Sum()); // idle + iowait, total
+        if (OperatingSystem.IsWindows())
+        {
+            if (GetSystemTimes(out var idle, out var kernel, out var user))
+            {
+                long idleTicks = idle.ToTicks();
+                long totalTicks = kernel.ToTicks() + user.ToTicks();
+                return (idleTicks, totalTicks);
+            }
+            return (0, 1);
+        }
+
+        try
+        {
+            var linea = File.ReadLines("/proc/stat").First();
+            var v = linea.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                         .Skip(1).Take(8).Select(long.Parse).ToArray();
+            return (v[3] + v[4], v.Sum()); // idle + iowait, total
+        }
+        catch
+        {
+            return (0, 1);
+        }
     }
 
     public static string ModeloCpu()
     {
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                var val = Registry.GetValue(@"HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\CentralProcessor\0", "ProcessorNameString", null) as string;
+                if (!string.IsNullOrWhiteSpace(val)) return val.Trim();
+            }
+            catch { }
+            return Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? "CPU";
+        }
+
         try
         {
             foreach (var l in File.ReadLines("/proc/cpuinfo"))
@@ -39,6 +100,17 @@ public static class SystemStats
 
     public static double? FrecuenciaGHz()
     {
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                var mhz = Registry.GetValue(@"HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\CentralProcessor\0", "~MHz", null);
+                if (mhz is int m && m > 0) return m / 1000.0;
+            }
+            catch { }
+            return null;
+        }
+
         try
         {
             var vals = new List<double>();
@@ -66,6 +138,8 @@ public static class SystemStats
 
     public static double? LeerTemperatura()
     {
+        if (!OperatingSystem.IsLinux()) return null;
+
         // 1) zonas térmicas que parecen de CPU
         try
         {
@@ -109,26 +183,47 @@ public static class SystemStats
     // ---------- Memoria ----------
     public static Memoria LeerMemoria()
     {
-        long total = 0, disp = 0, swT = 0, swL = 0;
-        foreach (var l in File.ReadLines("/proc/meminfo"))
+        if (OperatingSystem.IsWindows())
         {
-            var p = l.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (p.Length < 2) continue;
-            switch (p[0])
+            var mem = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
+            if (GlobalMemoryStatusEx(ref mem))
             {
-                case "MemTotal:": total = long.Parse(p[1]); break;
-                case "MemAvailable:": disp = long.Parse(p[1]); break;
-                case "SwapTotal:": swT = long.Parse(p[1]); break;
-                case "SwapFree:": swL = long.Parse(p[1]); break;
+                long total = (long)(mem.ullTotalPhys / 1024);
+                long disp = (long)(mem.ullAvailPhys / 1024);
+                long swT = (long)(mem.ullTotalPageFile / 1024);
+                long swL = (long)(mem.ullAvailPageFile / 1024);
+                return new Memoria(total, disp, swT, swL);
+            }
+            return new Memoria(0, 0, 0, 0);
+        }
+
+        long lTotal = 0, lDisp = 0, lSwT = 0, lSwL = 0;
+        try
+        {
+            foreach (var l in File.ReadLines("/proc/meminfo"))
+            {
+                var p = l.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (p.Length < 2) continue;
+                switch (p[0])
+                {
+                    case "MemTotal:": lTotal = long.Parse(p[1]); break;
+                    case "MemAvailable:": lDisp = long.Parse(p[1]); break;
+                    case "SwapTotal:": lSwT = long.Parse(p[1]); break;
+                    case "SwapFree:": lSwL = long.Parse(p[1]); break;
+                }
             }
         }
-        return new Memoria(total, disp, swT, swL);
+        catch { }
+        return new Memoria(lTotal, lDisp, lSwT, lSwL);
     }
 
     // ---------- Disco ----------
     public static (long libre, long total) LeerDiscoRaiz()
     {
-        var d = new DriveInfo("/");
+        var ruta = OperatingSystem.IsWindows()
+            ? (Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\")
+            : "/";
+        var d = new DriveInfo(ruta);
         return (d.AvailableFreeSpace, d.TotalSize);
     }
 
@@ -138,6 +233,8 @@ public static class SystemStats
     /// <summary>Bytes acumulados leídos/escritos en todos los discos físicos.</summary>
     public static (long leido, long escrito) LeerIoDisco()
     {
+        if (!OperatingSystem.IsLinux()) return (0, 0);
+
         long r = 0, w = 0;
         try
         {
@@ -156,7 +253,25 @@ public static class SystemStats
     // ---------- Red ----------
     public static (long rx, long tx) LeerRed()
     {
-        long rx = 0, tx = 0;
+        if (OperatingSystem.IsWindows())
+        {
+            long rx = 0, tx = 0;
+            try
+            {
+                foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (nic.OperationalStatus != OperationalStatus.Up ||
+                        nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                    var stats = nic.GetIPv4Statistics();
+                    rx += stats.BytesReceived;
+                    tx += stats.BytesSent;
+                }
+            }
+            catch { }
+            return (rx, tx);
+        }
+
+        long lRx = 0, lTx = 0;
         try
         {
             foreach (var l in File.ReadLines("/proc/net/dev").Skip(2))
@@ -167,27 +282,24 @@ public static class SystemStats
                 if (nombre == "lo" || nombre.StartsWith("docker") || nombre.StartsWith("veth") || nombre.StartsWith("br-"))
                     continue;
                 var p = l[(i + 1)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                rx += long.Parse(p[0]);
-                tx += long.Parse(p[8]);
+                lRx += long.Parse(p[0]);
+                lTx += long.Parse(p[8]);
             }
         }
         catch { }
-        return (rx, tx);
+        return (lRx, lTx);
     }
 
     // ---------- Sistema ----------
     public static TimeSpan Uptime()
     {
-        try
-        {
-            var s = File.ReadAllText("/proc/uptime").Split(' ')[0];
-            return TimeSpan.FromSeconds(double.Parse(s, CultureInfo.InvariantCulture));
-        }
-        catch { return TimeSpan.Zero; }
+        return TimeSpan.FromMilliseconds(Environment.TickCount64);
     }
 
     public static string Carga()
     {
+        if (OperatingSystem.IsWindows()) return "-";
+
         try
         {
             var p = File.ReadAllText("/proc/loadavg").Split(' ');
@@ -198,6 +310,11 @@ public static class SystemStats
 
     public static string InfoSistema()
     {
+        if (OperatingSystem.IsWindows())
+        {
+            return RuntimeInformation.OSDescription;
+        }
+
         string distro = "Linux", kernel = "";
         try
         {
@@ -255,6 +372,22 @@ public static class SystemStats
 
     public static List<ProcInfo> LeerProcesos()
     {
+        if (OperatingSystem.IsWindows())
+        {
+            var res = new List<ProcInfo>(128);
+            foreach (var p in Process.GetProcesses())
+            {
+                try
+                {
+                    long jiffies = p.TotalProcessorTime.Ticks;
+                    long rss = p.WorkingSet64;
+                    res.Add(new ProcInfo(p.Id, p.ProcessName, jiffies, rss, -1, -1));
+                }
+                catch { }
+            }
+            return res;
+        }
+
         var lista = new List<ProcInfo>(256);
         int pagina = Environment.SystemPageSize;
 
@@ -273,7 +406,7 @@ public static class SystemStats
                 var restoSpan = statContenido.AsSpan(fin + 2);
                 var (utime, stime, rssPaginas) = ParsearCamposStat(restoSpan);
                 long rss = rssPaginas * pagina;
-                if (rss == 0) continue; // hilos del kernel
+                if (rss == 0) continue;
 
                 if (EsGenerico(nombre)) nombre = MejorarNombre(dir, nombre);
 
@@ -290,7 +423,7 @@ public static class SystemStats
 
                 lista.Add(new ProcInfo(pid, nombre, utime + stime, rss, leido, escrito));
             }
-            catch { /* el proceso terminó mientras lo leíamos */ }
+            catch { }
         }
         return lista;
     }
